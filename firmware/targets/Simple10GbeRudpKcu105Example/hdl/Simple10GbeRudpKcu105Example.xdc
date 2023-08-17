@@ -47,6 +47,38 @@ set_property -dict { PACKAGE_PIN R22 IOSTANDARD LVCMOS18 } [get_ports { flashHol
 
 set_property -dict { PACKAGE_PIN K20 IOSTANDARD LVCMOS18 } [get_ports { emcClk }]
 
+# On-Board System clock
+set_property ODT RTT_48 [get_ports "sysClkN"]
+set_property PACKAGE_PIN AK16 [get_ports "sysClkN"]
+set_property IOSTANDARD DIFF_SSTL12_DCI [get_ports "sysClkN"]
+set_property PACKAGE_PIN AK17 [get_ports "sysClkP"]
+set_property IOSTANDARD DIFF_SSTL12_DCI [get_ports "sysClkP"]
+set_property ODT RTT_48 [get_ports "sysClkP"]
+
+# SGMII/Ext. PHY
+set_property PACKAGE_PIN P25 [get_ports ethRxN]
+set_property IOSTANDARD DIFF_HSTL_I_18 [get_ports ethRxN]
+set_property PACKAGE_PIN P24 [get_ports ethRxP]
+set_property IOSTANDARD DIFF_HSTL_I_18 [get_ports ethRxP]
+set_property PACKAGE_PIN M24 [get_ports ethTxN]
+set_property IOSTANDARD DIFF_HSTL_I_18 [get_ports ethTxN]
+set_property PACKAGE_PIN N24 [get_ports ethTxP]
+set_property IOSTANDARD DIFF_HSTL_I_18 [get_ports ethTxP]
+set_property PACKAGE_PIN N26 [get_ports ethClkN]
+set_property IOSTANDARD LVDS_25 [get_ports ethClkN]
+set_property PACKAGE_PIN P26 [get_ports ethClkP]
+set_property IOSTANDARD LVDS_25 [get_ports ethClkP]
+
+create_clock -name sysClkP -period 3.333 [get_ports {sysClkP}]
+create_clock -name lvdsClkP   -period 1.600 [get_ports {gEthClkP}]
+create_generated_clock -name ethClk625MHz [get_pins {U_Core/GEN_ETH.U_Rudp/Sgmii88E1111LvdsUltraScale_1/U_1GigE/U_PLL/CLKOUT0}]
+create_generated_clock -name ethClk312MHz [get_pins {U_Core/GEN_ETH.U_Rudp/Sgmii88E1111LvdsUltraScale_1/U_1GigE/U_PLL/CLKOUT1}]
+create_generated_clock -name ethClk125MHz [get_pins {U_Core/GEN_ETH.U_Rudp/Sgmii88E1111LvdsUltraScale_1/U_1GigE/U_sysClk125/O}]
+
+set_property CLOCK_DELAY_GROUP ETH_CLK_GRP [get_nets {U_Core/GEN_ETH.U_Rudp/Sgmii88E1111LvdsUltraScale_1/U_1GigE/sysClk312}] [get_nets {U_Core/GEN_ETH.U_Rudp/Sgmii88E1111LvdsUltraScale_1/U_1GigE/sysClk625}]
+
+set_clock_groups -asynchronous -group [get_clocks {ethClk312MHz}] -group [get_clocks {ethClk125MHz}]
+set_clock_groups -asynchronous -group [get_clocks -include_generated_clocks {lvdsClkP}] -group [get_clocks -include_generated_clocks {sysClkP}]
 ##############################################################################
 # Timing Constraints
 ##############################################################################
@@ -54,6 +86,7 @@ set_property -dict { PACKAGE_PIN K20 IOSTANDARD LVCMOS18 } [get_ports { emcClk }
 create_clock -name ethClkP -period  6.400 [get_ports {ethClkP}]
 
 set_clock_groups -asynchronous -group [get_clocks ethClkP] -group [get_clocks -of_objects [get_pins {U_Core/GEN_ETH.U_Rudp/U_10GigE/GEN_LANE[0].TenGigEthGthUltraScale_Inst/U_TenGigEthRst/CLK156_BUFG_GT/O}]]
+set_clock_groups -asynchronous -group [get_clocks -include_generated_clocks {lvdsClkP}] -group [get_clocks -include_generated_clocks {ethClkP}]
 
 ##############################################################################
 # BITSTREAM: .bit file Configuration
