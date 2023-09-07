@@ -46,17 +46,17 @@ class Core(pr.Device):
             enabled = not sim,
         ))
 
-        for i in range(3):
+        for i in range(4):
             self.add(rssi.RssiCore(
                 name    = f'FwRudpServer[{i}]',
                 offset  = 0x0012_0000 + (i * 0x0001_0000),
                 enabled = not sim,
             ))
 
-        for i in range(2):
+        for i in range(3):
             self.add(axi.AxiStreamMonAxiL(
                 name        = f'AxisMon[{i}]',
-                offset      = 0x0015_0000 + (i * 0x0001_0000),
+                offset      = 0x0016_0000 + (i * 0x0001_0000),
                 numberLanes = 2,
                 expand      = True,
                 enabled     = not sim,
@@ -65,7 +65,9 @@ class Core(pr.Device):
         # Don't example the FW RX AXI stream monitor
         self.AxisMon[0].Ch[0]._expand = True
         self.AxisMon[1].Ch[0]._expand = True
+        self.AxisMon[2].Ch[0]._expand = True
 
         # Don't example the FW RX AXI stream monitor
         self.AxisMon[0].Ch[1]._expand = False
         self.AxisMon[1].Ch[1]._expand = False
+        self.AxisMon[2].Ch[1]._expand = False

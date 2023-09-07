@@ -23,7 +23,7 @@ use surf.AxiLitePkg.all;
 entity Simple10GbeRudpKcu105Example is
   generic (
     TPD_G        : time             := 1 ns;
-    N_STREAMS_G  : positive         := 2;
+    N_STREAMS_G  : positive         := 3;
     BUILD_INFO_G : BuildInfoType;
     SIMULATION_G : boolean          := false;
     IP_ADDR_G    : slv(31 downto 0) := x"0A02A8C0";  -- 192.168.2.10
@@ -71,7 +71,7 @@ begin
   led(7) <= '1';
   led(6) <= '0';
   led(5) <= heartbeat;
-  led(4) <= axilRst;
+  led(4) <= rssiLinkUp(3);
   led(3) <= rssiLinkUp(2);
   led(2) <= rssiLinkUp(1);
   led(1) <= rssiLinkUp(0);

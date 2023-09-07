@@ -26,6 +26,11 @@ class App(pr.Device):
             expand = True,
         ))
 
+        self.add(devBoard.AppTx2(
+            offset = 0x0003_0000,
+            expand = True,
+        ))
+
         self.add(devBoard.AppMem(
             offset  = 0x0000_0000,
         ))

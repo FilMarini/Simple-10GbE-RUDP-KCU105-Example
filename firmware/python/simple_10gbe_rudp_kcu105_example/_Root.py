@@ -66,9 +66,9 @@ class Root(pr.Root):
         else:
 
             # Add RUDP Software clients
-            self.rudp = [None for i in range(3)]
+            self.rudp = [None for i in range(4)]
 
-            for i in range(3):
+            for i in range(4):
                 # Create the ETH interface @ IP Address = ip
                 self.rudp[i] = pr.protocols.UdpRssiPack(
                     name    = f'SwRudpClient[{i}]',
@@ -90,6 +90,7 @@ class Root(pr.Root):
             # Map the streaming interface
             self.stream0 = self.rudp[1].application(0)
             self.stream1 = self.rudp[2].application(0)
+            self.stream2 = self.rudp[3].application(0)
 
         #################################################################
 
@@ -107,10 +108,12 @@ class Root(pr.Root):
             # Connect stream to swRx
             self.stream0 >> self.swRx
             self.stream1 >> self.swRx
+            self.stream2 >> self.swRx
 
             # Also connect stream to data writer
             self.stream0 >> self.dataWriter.getChannel(0)
             self.stream1 >> self.dataWriter.getChannel(0)
+            self.stream2 >> self.dataWriter.getChannel(0)
 
         #################################################################
 
@@ -145,5 +148,10 @@ class Root(pr.Root):
             appTx1 = self.find(typ=devBoard.AppTx1)
             # Turn off the Continuous Mode
             for devPtr in appTx1:
+                devPtr.ContinuousMode.set(False)
+            self.CountReset()
+            appTx2 = self.find(typ=devBoard.AppTx2)
+            # Turn off the Continuous Mode
+            for devPtr in appTx2:
                 devPtr.ContinuousMode.set(False)
             self.CountReset()

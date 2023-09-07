@@ -189,20 +189,22 @@ begin  -- architecture rtl
         axilWriteSlave  => s_mAxilWriteSlave
         );
 
-    U_TcpToAxiStream : entity surf.RogueTcpStreamWrap
-      generic map (
-        TPD_G         => TPD_G,
-        PORT_NUM_G    => 10002,         -- TCP Ports [10002,10003]
-        SSI_EN_G      => true,
-        AXIS_CONFIG_G => RSSI_AXIS_CONFIG_C)
-      port map (
-        axisClk     => s_clk,
-        axisRst     => s_rst,
-        sAxisMaster => ibRudpMaster_i,
-        sAxisSlave  => ibRudpSlave_o,
-        mAxisMaster => obRudpMaster_o,
-        mAxisSlave  => obRudpSlave_i
-        );
+    GEN_TCPTOAXIS: for i in 0 to N_STREAMS_G - 1 generate
+      U_TcpToAxiStream : entity surf.RogueTcpStreamWrap
+        generic map (
+          TPD_G         => TPD_G,
+          PORT_NUM_G    => 10002 + (i * 2),   -- TCP Ports [10002,10003]
+          SSI_EN_G      => true,
+          AXIS_CONFIG_G => RSSI_AXIS_CONFIG_C)
+        port map (
+          axisClk     => s_clk,
+          axisRst     => s_rst,
+          sAxisMaster => ibRudpMaster_i(i),
+          sAxisSlave  => ibRudpSlave_o(i),
+          mAxisMaster => obRudpMaster_o(i),
+          mAxisSlave  => obRudpSlave_i(i)
+          );
+    end generate GEN_TCPTOAXIS;
 
     axilClk_o <= s_clk;
     axilRst_o <= s_rst;
