@@ -21,103 +21,109 @@ use surf.AxiStreamPkg.all;
 use surf.AxiLitePkg.all;
 
 entity App is
-   generic (
-      TPD_G        : time    := 1 ns;
-      SIMULATION_G : boolean := false);
-   port (
-      -- Clock and Reset
-      axilClk         : in  sl;
-      axilRst         : in  sl;
-      -- AXI-Stream Interface
-      ibRudpMaster    : out AxiStreamMasterType;
-      ibRudpSlave     : in  AxiStreamSlaveType;
-      obRudpMaster    : in  AxiStreamMasterType;
-      obRudpSlave     : out AxiStreamSlaveType;
-      -- AXI-Lite Interface
-      axilReadMaster  : in  AxiLiteReadMasterType;
-      axilReadSlave   : out AxiLiteReadSlaveType;
-      axilWriteMaster : in  AxiLiteWriteMasterType;
-      axilWriteSlave  : out AxiLiteWriteSlaveType);
+  generic (
+    TPD_G        : time     := 1 ns;
+    N_STREAMS_G  : positive := 2;
+    SIMULATION_G : boolean  := false);
+  port (
+    -- Clock and Reset
+    axilClk         : in  sl;
+    axilRst         : in  sl;
+    -- AXI-Stream Interface
+    ibRudpMaster    : out AxiStreamMasterArray(N_STREAMS_G - 1 downto 0);
+    ibRudpSlave     : in  AxiStreamSlaveArray(N_STREAMS_G - 1 downto 0);
+    obRudpMaster    : in  AxiStreamMasterArray(N_STREAMS_G - 1 downto 0);
+    obRudpSlave     : out AxiStreamSlaveArray(N_STREAMS_G - 1 downto 0);
+    -- AXI-Lite Interface
+    axilReadMaster  : in  AxiLiteReadMasterType;
+    axilReadSlave   : out AxiLiteReadSlaveType;
+    axilWriteMaster : in  AxiLiteWriteMasterType;
+    axilWriteSlave  : out AxiLiteWriteSlaveType);
 end App;
 
 architecture mapping of App is
 
-   constant TX_INDEX_C  : natural := 0;
-   constant MEM_INDEX_C : natural := 1;
+  constant TX_INDEX_C  : natural := 1;
+  constant MEM_INDEX_C : natural := 0;
 
-   constant NUM_AXIL_MASTERS_C : positive := 2;
+  constant NUM_AXIL_MASTERS_C : positive := 1 + N_STREAMS_G;
 
-   constant XBAR_CONFIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, x"8000_0000", 20, 16);
+  constant XBAR_CONFIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, x"8000_0000", 20, 16);
 
-   signal axilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
-   signal axilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0) := (others => AXI_LITE_WRITE_SLAVE_EMPTY_SLVERR_C);
-   signal axilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
-   signal axilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0)  := (others => AXI_LITE_READ_SLAVE_EMPTY_SLVERR_C);
+  signal axilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
+  signal axilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0) := (others => AXI_LITE_WRITE_SLAVE_EMPTY_SLVERR_C);
+  signal axilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
+  signal axilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0)  := (others => AXI_LITE_READ_SLAVE_EMPTY_SLVERR_C);
 
 begin
 
-   -------------------------------
-   -- Terminating unused RX stream
-   -------------------------------
-   obRudpSlave <= AXI_STREAM_SLAVE_FORCE_C;
+  -------------------------------
+  -- Terminating unused RX stream
+  -------------------------------
+  GEN_SLAVES : for i in 0 to N_STREAMS_G - 1 generate
+    obRudpSlave(i) <= AXI_STREAM_SLAVE_FORCE_C;
+  end generate GEN_SLAVES;
 
-   ---------------------------
-   -- AXI-Lite Crossbar Module
-   ---------------------------
-   U_XBAR : entity surf.AxiLiteCrossbar
-      generic map (
-         TPD_G              => TPD_G,
-         NUM_SLAVE_SLOTS_G  => 1,
-         NUM_MASTER_SLOTS_G => NUM_AXIL_MASTERS_C,
-         MASTERS_CONFIG_G   => XBAR_CONFIG_C)
-      port map (
-         sAxiWriteMasters(0) => axilWriteMaster,
-         sAxiWriteSlaves(0)  => axilWriteSlave,
-         sAxiReadMasters(0)  => axilReadMaster,
-         sAxiReadSlaves(0)   => axilReadSlave,
-         mAxiWriteMasters    => axilWriteMasters,
-         mAxiWriteSlaves     => axilWriteSlaves,
-         mAxiReadMasters     => axilReadMasters,
-         mAxiReadSlaves      => axilReadSlaves,
-         axiClk              => axilClk,
-         axiClkRst           => axilRst);
+  ---------------------------
+  -- AXI-Lite Crossbar Module
+  ---------------------------
+  U_XBAR : entity surf.AxiLiteCrossbar
+    generic map (
+      TPD_G              => TPD_G,
+      NUM_SLAVE_SLOTS_G  => 1,
+      NUM_MASTER_SLOTS_G => NUM_AXIL_MASTERS_C,
+      MASTERS_CONFIG_G   => XBAR_CONFIG_C)
+    port map (
+      sAxiWriteMasters(0) => axilWriteMaster,
+      sAxiWriteSlaves(0)  => axilWriteSlave,
+      sAxiReadMasters(0)  => axilReadMaster,
+      sAxiReadSlaves(0)   => axilReadSlave,
+      mAxiWriteMasters    => axilWriteMasters,
+      mAxiWriteSlaves     => axilWriteSlaves,
+      mAxiReadMasters     => axilReadMasters,
+      mAxiReadSlaves      => axilReadSlaves,
+      axiClk              => axilClk,
+      axiClkRst           => axilRst);
 
-   --------------------------------
-   -- Application TX Streaming Module
-   --------------------------------
-   U_AppTx : entity work.AppTx
+  --------------------------------
+  -- Application TX Streaming Module
+  --------------------------------
+  GEN_APPTX : for i in 0 to N_STREAMS_G - 1 generate
+    U_AppTx : entity work.AppTx
       generic map (
-         TPD_G        => TPD_G,
-         SIMULATION_G => SIMULATION_G)
+        TPD_G        => TPD_G,
+        SIMULATION_G => SIMULATION_G)
       port map (
-         -- Clock and Reset
-         axilClk         => axilClk,
-         axilRst         => axilRst,
-         -- AXI-Stream Interface
-         txMaster        => ibRudpMaster,
-         txSlave         => ibRudpSlave,
-         -- AXI-Lite Interface
-         axilReadMaster  => axilReadMasters(TX_INDEX_C),
-         axilReadSlave   => axilReadSlaves(TX_INDEX_C),
-         axilWriteMaster => axilWriteMasters(TX_INDEX_C),
-         axilWriteSlave  => axilWriteSlaves(TX_INDEX_C));
+        -- Clock and Reset
+        axilClk         => axilClk,
+        axilRst         => axilRst,
+        -- AXI-Stream Interface
+        txMaster        => ibRudpMaster(i),
+        txSlave         => ibRudpSlave(i),
+        -- AXI-Lite Interface
+        axilReadMaster  => axilReadMasters(TX_INDEX_C + i),
+        axilReadSlave   => axilReadSlaves(TX_INDEX_C + i),
+        axilWriteMaster => axilWriteMasters(TX_INDEX_C + i),
+        axilWriteSlave  => axilWriteSlaves(TX_INDEX_C + i)
+        );
+  end generate GEN_APPTX;
 
-   --------------------------------
-   -- AXI-Lite General Memory Module
-   --------------------------------
-   U_Mem : entity surf.AxiDualPortRam
-      generic map (
-         TPD_G        => TPD_G,
-         COMMON_CLK_G => true,
-         ADDR_WIDTH_G => 10,
-         DATA_WIDTH_G => 32)
-      port map (
-         -- AXI-Lite Interface
-         axiClk         => axilClk,
-         axiRst         => axilRst,
-         axiReadMaster  => axilReadMasters(MEM_INDEX_C),
-         axiReadSlave   => axilReadSlaves(MEM_INDEX_C),
-         axiWriteMaster => axilWriteMasters(MEM_INDEX_C),
-         axiWriteSlave  => axilWriteSlaves(MEM_INDEX_C));
+  --------------------------------
+  -- AXI-Lite General Memory Module
+  --------------------------------
+  U_Mem : entity surf.AxiDualPortRam
+    generic map (
+      TPD_G        => TPD_G,
+      COMMON_CLK_G => true,
+      ADDR_WIDTH_G => 10,
+      DATA_WIDTH_G => 32)
+    port map (
+      -- AXI-Lite Interface
+      axiClk         => axilClk,
+      axiRst         => axilRst,
+      axiReadMaster  => axilReadMasters(MEM_INDEX_C),
+      axiReadSlave   => axilReadSlaves(MEM_INDEX_C),
+      axiWriteMaster => axilWriteMasters(MEM_INDEX_C),
+      axiWriteSlave  => axilWriteSlaves(MEM_INDEX_C));
 
 end mapping;
