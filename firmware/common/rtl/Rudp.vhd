@@ -73,25 +73,49 @@ end Rudp;
 
 architecture rtl of Rudp is
 
+  function f_ports_idx (
+    n_streams : positive)
+    return IntegerArray is
+    variable ports_array : IntegerArray(n_streams - 1 downto 0);
+  begin  -- function f_ports
+    for i in 0 to n_streams - 1 loop
+      ports_array(i) := i + 1;
+    end loop;  -- i
+    return ports_array;
+  end function f_ports_idx;
+
+  function f_ports (
+    server_size_c      : positive;
+    udp_srv_srp_idx_c  : natural;
+    udp_srv_data_idx_c : IntegerArray)
+    return PositiveArray is
+    variable server_ports : PositiveArray(server_size_c-1 downto 0);
+  begin  -- function f_ports
+    server_ports(udp_srv_srp_idx_c) := 8192;
+    for i in 0 to udp_srv_data_idx_c'length - 1 loop
+      server_ports(udp_srv_data_idx_c(i)) := 8193 + i;
+    end loop;  -- i
+    return server_ports;
+  end function f_ports;
+
   constant PHY_INDEX_C      : natural := 0;
   constant UDP_INDEX_C      : natural := 1;
-  constant RSSI_INDEX_C     : natural := 2;  -- 2:4
-  constant AXIS_MON_INDEX_C : natural := 5;  -- 5:6
+  constant RSSI_INDEX_C     : natural := 2;                  -- 2:(2+NS)
+  constant AXIS_MON_INDEX_C : natural := (3 + N_STREAMS_G);  -- (3+NS):((3+NS)+(NS-1))
 
-  constant NUM_AXIL_MASTERS_C : positive                                                        := (3 + (N_STREAMS_G * 2));
-  constant XBAR_CONFIG_C      : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 20, 16);
+  constant NUM_AXIL_MASTERS_C : positive := (3 + (N_STREAMS_G * 2));
+  constant XBAR_CONFIG_C      : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0)
+    := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 20, 16);
 
   constant CLK_FREQUENCY_C : real := 156.25E+6;  -- In units of Hz
 
   -- UDP constants
-  constant UDP_SRV_SRP_IDX_C   : natural  := 0;
-  constant UDP_SRV_DATA0_IDX_C : natural  := 1;
-  constant UDP_SRV_DATA1_IDX_C : natural  := 2;
-  constant SERVER_SIZE_C       : positive := 1 + N_STREAMS_G;
-  constant SERVER_PORTS_C : PositiveArray(SERVER_SIZE_C-1 downto 0) := (
-    UDP_SRV_SRP_IDX_C   => 8192,        -- SRPv3
-    UDP_SRV_DATA0_IDX_C => 8193,        -- Streaming data
-    UDP_SRV_DATA1_IDX_C => 8194);       -- Streaming data
+  constant UDP_SRV_SRP_IDX_C  : natural := 0;
+  constant UDP_SRV_DATA_IDX_C : IntegerArray(N_STREAMS_G-1 downto 0)
+    := f_ports_idx(N_STREAMS_G);
+  constant SERVER_SIZE_C  : positive := 1 + N_STREAMS_G;
+  constant SERVER_PORTS_C : PositiveArray(SERVER_SIZE_C-1 downto 0)
+    := f_ports(SERVER_SIZE_C, UDP_SRV_SRP_IDX_C, UDP_SRV_DATA_IDX_C);
 
   -- RSSI constants
   constant RSSI_SIZE_C : positive := 1;  -- Implementing only 1 VC per RSSI link

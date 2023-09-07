@@ -66,9 +66,9 @@ class Root(pr.Root):
         else:
 
             # Add RUDP Software clients
-            self.rudp = [None for i in range(2)]
+            self.rudp = [None for i in range(3)]
 
-            for i in range(2):
+            for i in range(3):
                 # Create the ETH interface @ IP Address = ip
                 self.rudp[i] = pr.protocols.UdpRssiPack(
                     name    = f'SwRudpClient[{i}]',
@@ -88,15 +88,8 @@ class Root(pr.Root):
             self.srp == self.rudp[0].application(0)
 
             # Map the streaming interface
-            self.stream = self.rudp[1].application(0)
-
-            # Create XVC server and UDP client
-            self.udpClient = rogue.protocols.udp.Client( ip, 2542, False ) # Client(host, port, jumbo)
-            self.xvc = rogue.protocols.xilinx.Xvc ( 2542 ) # Server(port)
-            self.addProtocol( self.xvc )
-
-            # Connect the UDP Client to the XVC
-            self.udpClient == self.xvc
+            self.stream0 = self.rudp[1].application(0)
+            self.stream1 = self.rudp[2].application(0)
 
         #################################################################
 
@@ -112,10 +105,12 @@ class Root(pr.Root):
             self.add(self.swRx)
 
             # Connect stream to swRx
-            self.stream >> self.swRx
+            self.stream0 >> self.swRx
+            self.stream1 >> self.swRx
 
             # Also connect stream to data writer
-            self.stream >> self.dataWriter.getChannel(0)
+            self.stream0 >> self.dataWriter.getChannel(0)
+            self.stream1 >> self.dataWriter.getChannel(0)
 
         #################################################################
 
@@ -142,8 +137,13 @@ class Root(pr.Root):
         super().start(**kwargs)
         # Check if not simulation
         if not self.sim:
-            appTx = self.find(typ=devBoard.AppTx)
+            appTx0 = self.find(typ=devBoard.AppTx0)
             # Turn off the Continuous Mode
-            for devPtr in appTx:
+            for devPtr in appTx0:
+                devPtr.ContinuousMode.set(False)
+            self.CountReset()
+            appTx1 = self.find(typ=devBoard.AppTx1)
+            # Turn off the Continuous Mode
+            for devPtr in appTx1:
                 devPtr.ContinuousMode.set(False)
             self.CountReset()

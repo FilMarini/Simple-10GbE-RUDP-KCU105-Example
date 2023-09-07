@@ -16,11 +16,16 @@ class App(pr.Device):
     def __init__( self,sim=False,**kwargs):
         super().__init__(**kwargs)
 
-        self.add(devBoard.AppTx(
-            offset = 0x0000_0000,
+        self.add(devBoard.AppTx0(
+            offset = 0x0001_0000,
+            expand = True,
+        ))
+
+        self.add(devBoard.AppTx1(
+            offset = 0x0002_0000,
             expand = True,
         ))
 
         self.add(devBoard.AppMem(
-            offset  = 0x0001_0000,
+            offset  = 0x0000_0000,
         ))
