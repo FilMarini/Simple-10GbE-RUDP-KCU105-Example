@@ -3,4 +3,4 @@
 	url = https://github.com/slaclab/ruckus.git
 [submodule "firmware/submodules/surf"]
 	path = firmware/submodules/surf
-	url = https://github.com/slaclab/surf.git
+	url = git@github.com:FilMarini/surf.git

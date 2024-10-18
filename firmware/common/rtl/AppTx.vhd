@@ -56,6 +56,7 @@ architecture rtl of AppTx is
       wordCnt        : slv(31 downto 0);
       wordMax        : slv(31 downto 0);
       continousMode  : sl;
+      tDest          : slv(7 downto 0);
       txMaster       : AxiStreamMasterType;
       axilReadSlave  : AxiLiteReadSlaveType;
       axilWriteSlave : AxiLiteWriteSlaveType;
@@ -69,6 +70,7 @@ architecture rtl of AppTx is
       wordCnt        => (others => '0'),
       wordMax        => (others => '0'),
       continousMode  => '0',
+      tDest          => (others => '0'),
       txMaster       => axiStreamMasterInit(RSSI_AXIS_CONFIG_C),
       axilReadSlave  => AXI_LITE_READ_SLAVE_INIT_C,
       axilWriteSlave => AXI_LITE_WRITE_SLAVE_INIT_C,
@@ -80,8 +82,9 @@ architecture rtl of AppTx is
 begin
 
    comb : process (axilReadMaster, axilRst, axilWriteMaster, r, txSlave) is
-      variable v      : RegType;
-      variable axilEp : AxiLiteEndPointType;
+      variable v          : RegType;
+      variable axilEp     : AxiLiteEndPointType;
+      variable tDestLatch : slv(7 downto 0) := (others => '0');
    begin
       -- Latch the current value
       v := r;
@@ -100,6 +103,7 @@ begin
       axiSlaveRegisterR(axilEp, x"00C", 0, r.wordCnt);  -- Read Only for monitoring bursting status
 
       axiSlaveRegister (axilEp, x"010", 0, v.continousMode);  -- Bursting Continuously Flag
+      axiSlaveRegister (axilEp, x"014", 0, v.tDest);  -- Bursting Continuously Flag
 
       -- Closeout the transaction
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
@@ -147,7 +151,8 @@ begin
                end if;
 
                -- Next state
-               v.state := MOVE_S;
+               tDestLatch := (others => '0');
+               v.state    := MOVE_S;
 
             end if;
          ----------------------------------------------------------------------
@@ -157,10 +162,15 @@ begin
 
                -- Send the data
                v.txMaster.tValid             := '1';
+               v.txMaster.tDest              := tDestLatch;
                v.txMaster.tData(63 downto 0) := resize(r.wordCnt, 64);
 
                -- Check for Start Of Frame (SOF)
                if (r.wordCnt = 0) then
+
+                  -- Set tDest
+                  tDestLatch       := r.tDest;
+                  v.txMaster.tDest := tDestLatch;
 
                   -- Overwrite first word with frame count index (simple header)
                   v.txMaster.tData(63 downto 0) := resize(r.frameCnt, 64);
