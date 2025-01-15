@@ -31,6 +31,8 @@ entity Rudp is
       BUILD_10G_G      : boolean;
       IP_ADDR_G        : slv(31 downto 0);
       DHCP_G           : boolean;
+      PHY_BYPASS_G     : false;
+      MAC_BYPASS_G     : false;
       AXIL_BASE_ADDR_G : slv(31 downto 0));
    port (
       -- System Ports
@@ -57,20 +59,33 @@ entity Rudp is
       sAxilWriteMaster : in  AxiLiteWriteMasterType;
       sAxilWriteSlave  : out AxiLiteWriteSlaveType;
       -- ETH GT Pins
-      ethClkP          : in  sl;
-      ethClkN          : in  sl;
-      ethRxP           : in  sl;
-      ethRxN           : in  sl;
+      ethClkP          : in  sl                  := '0';
+      ethClkN          : in  sl                  := '0';
+      ethRxP           : in  sl                  := '0';
+      ethRxN           : in  sl                  := '0';
       ethTxP           : out sl;
-      ethTxN           : out sl);
+      ethTxN           : out sl;
+      -- XGMII PHY Interface (in case PHY is bypassed)
+      xgmiiRxd         : in  slv(63 downto 0)    := (others => '0');
+      xgmiiRxc         : in  slv(7 downto 0)     := (others => '0');
+      xgmiiTxd         : out slv(63 downto 0);
+      xgmiiTxc         : out slv(7 downto 0);
+      -- UDP Interface (in case PHY is bypassed)
+      udpRxMaster      : in  AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
+      udpRxSlave       : out AxiStreamSlaveType;
+      udpTxMaster      : out AxiStreamMasterType;
+      udpTxSlave       : in  AxiStreamSlaveType  := AXI_STREAM_SLAVE_INIT_C;
+      );
+
 end Rudp;
 
 architecture mapping of Rudp is
 
-   constant PHY_INDEX_C      : natural := 0;
-   constant UDP_INDEX_C      : natural := 1;
-   constant RSSI_INDEX_C     : natural := 2;  -- 2:3
-   constant AXIS_MON_INDEX_C : natural := 4;
+   constant MAC_ADDR_C       : slv(47 downto 0) := x"00000027000A";
+   constant PHY_INDEX_C      : natural          := 0;
+   constant UDP_INDEX_C      : natural          := 1;
+   constant RSSI_INDEX_C     : natural          := 2;  -- 2:3
+   constant AXIS_MON_INDEX_C : natural          := 4;
 
    constant NUM_AXIL_MASTERS_C : positive := 5;
 
@@ -118,10 +133,11 @@ architecture mapping of Rudp is
    signal localMac : slv(47 downto 0);
    signal localIp  : slv(31 downto 0);
 
-   signal ethClk   : sl;
-   signal ethRst   : sl;
-   signal extReset : sl;
-   signal refClk   : sl;
+   signal ethClk    : sl;
+   signal ethRst    : sl;
+   signal extReset  : sl;
+   signal refClk    : sl;
+   signal ethConfig : EthMacConfigArray(1 downto 0) := (others => ETH_MAC_CONFIG_INIT_C);
 
 begin
 
@@ -176,97 +192,152 @@ begin
          clk    => refClk,
          rstOut => extReset);
 
-   GEN_10G : if (BUILD_10G_G = true) generate
-      ----------------------------------
-      -- 10 GigE PHY/MAC Ethernet Layers
-      ----------------------------------
-      U_10GigE : entity surf.TenGigEthGthUltraScaleWrapper
-         generic map (
-            TPD_G        => TPD_G,
-            NUM_LANE_G   => 1,
-            PAUSE_EN_G   => true,       -- Enable ETH pause
-            EN_AXI_REG_G => true)       -- Enable diagnostic AXI-Lite interface
-         port map (
-            -- Local Configurations
-            localMac(0)            => localMac,
-            -- Streaming DMA Interface
-            dmaClk(0)              => ethClk,
-            dmaRst(0)              => ethRst,
-            dmaIbMasters(0)        => obMacMaster,
-            dmaIbSlaves(0)         => obMacSlave,
-            dmaObMasters(0)        => ibMacMaster,
-            dmaObSlaves(0)         => ibMacSlave,
-            -- Slave AXI-Lite Interface
-            axiLiteClk(0)          => ethClk,
-            axiLiteRst(0)          => ethRst,
-            axiLiteReadMasters(0)  => axilReadMasters(PHY_INDEX_C),
-            axiLiteReadSlaves(0)   => axilReadSlaves(PHY_INDEX_C),
-            axiLiteWriteMasters(0) => axilWriteMasters(PHY_INDEX_C),
-            axiLiteWriteSlaves(0)  => axilWriteSlaves(PHY_INDEX_C),
-            -- Misc. Signals
-            extRst                 => extReset,
-            coreClk                => ethClk,
-            coreRst                => ethRst,
-            phyReady(0)            => phyReady,
-            -- MGT Clock Port 156.25 MHz
-            gtClkP                 => ethClkP,
-            gtClkN                 => ethClkN,
-            -- MGT Ports
-            gtTxP(0)               => ethTxP,
-            gtTxN(0)               => ethTxN,
-            gtRxP(0)               => ethRxP,
-            gtRxN(0)               => ethRxN);
-      refClk <= ethClk;
-   end generate;
+   GEN_FULL_PHY : if PHY_BYPASS_G = false generate
+      GEN_10G : if (BUILD_10G_G = true) generate
+         ----------------------------------
+         -- 10 GigE PHY/MAC Ethernet Layers
+         ----------------------------------
+         U_10GigE : entity surf.TenGigEthGthUltraScaleWrapper
+            generic map (
+               TPD_G        => TPD_G,
+               NUM_LANE_G   => 1,
+               PAUSE_EN_G   => true,    -- Enable ETH pause
+               EN_AXI_REG_G => true)    -- Enable diagnostic AXI-Lite interface
+            port map (
+               -- Local Configurations
+               localMac(0)            => localMac,
+               -- Streaming DMA Interface
+               dmaClk(0)              => ethClk,
+               dmaRst(0)              => ethRst,
+               dmaIbMasters(0)        => obMacMaster,
+               dmaIbSlaves(0)         => obMacSlave,
+               dmaObMasters(0)        => ibMacMaster,
+               dmaObSlaves(0)         => ibMacSlave,
+               -- Slave AXI-Lite Interface
+               axiLiteClk(0)          => ethClk,
+               axiLiteRst(0)          => ethRst,
+               axiLiteReadMasters(0)  => axilReadMasters(PHY_INDEX_C),
+               axiLiteReadSlaves(0)   => axilReadSlaves(PHY_INDEX_C),
+               axiLiteWriteMasters(0) => axilWriteMasters(PHY_INDEX_C),
+               axiLiteWriteSlaves(0)  => axilWriteSlaves(PHY_INDEX_C),
+               -- Misc. Signals
+               extRst                 => extReset,
+               coreClk                => ethClk,
+               coreRst                => ethRst,
+               phyReady(0)            => phyReady,
+               -- MGT Clock Port 156.25 MHz
+               gtClkP                 => ethClkP,
+               gtClkN                 => ethClkN,
+               -- MGT Ports
+               gtTxP(0)               => ethTxP,
+               gtTxN(0)               => ethTxN,
+               gtRxP(0)               => ethRxP,
+               gtRxN(0)               => ethRxN);
+         refClk <= ethClk;
+      end generate;
 
-   GEN_1G : if (BUILD_10G_G = false) generate
-      ----------------------------------
-      -- 1 GigE PHY/MAC Ethernet Layers
-      ----------------------------------
-      U_1GigE : entity surf.GigEthGthUltraScaleWrapper
-         generic map (
-            TPD_G              => TPD_G,
-            NUM_LANE_G         => 1,
-            PAUSE_EN_G         => true,  -- Enable ETH pause
-            EN_AXI_REG_G       => true,  -- Enable diagnostic AXI-Lite interface
-            -- QUAD PLL Configurations
-            USE_GTREFCLK_G     => false,
-            CLKIN_PERIOD_G     => 6.4,  -- 156.25 MHz
-            DIVCLK_DIVIDE_G    => 5,    -- 31.25 MHz = (156.25 MHz/5)
-            CLKFBOUT_MULT_F_G  => 32.0,  -- 1 GHz = (32 x 31.25 MHz)
-            CLKOUT0_DIVIDE_F_G => 8.0)  -- 125 MHz = (1.0 GHz/8)
+      GEN_1G : if (BUILD_10G_G = false) generate
+         ----------------------------------
+         -- 1 GigE PHY/MAC Ethernet Layers
+         ----------------------------------
+         U_1GigE : entity surf.GigEthGthUltraScaleWrapper
+            generic map (
+               TPD_G              => TPD_G,
+               NUM_LANE_G         => 1,
+               PAUSE_EN_G         => true,  -- Enable ETH pause
+               EN_AXI_REG_G       => true,  -- Enable diagnostic AXI-Lite interface
+               -- QUAD PLL Configurations
+               USE_GTREFCLK_G     => false,
+               CLKIN_PERIOD_G     => 6.4,   -- 156.25 MHz
+               DIVCLK_DIVIDE_G    => 5,     -- 31.25 MHz = (156.25 MHz/5)
+               CLKFBOUT_MULT_F_G  => 32.0,  -- 1 GHz = (32 x 31.25 MHz)
+               CLKOUT0_DIVIDE_F_G => 8.0)   -- 125 MHz = (1.0 GHz/8)
+            port map (
+               -- Local Configurations
+               localMac(0)            => localMac,
+               -- Streaming DMA Interface
+               dmaClk(0)              => ethClk,
+               dmaRst(0)              => ethRst,
+               dmaIbMasters(0)        => obMacMaster,
+               dmaIbSlaves(0)         => obMacSlave,
+               dmaObMasters(0)        => ibMacMaster,
+               dmaObSlaves(0)         => ibMacSlave,
+               -- Slave AXI-Lite Interface
+               axiLiteClk(0)          => ethClk,
+               axiLiteRst(0)          => ethRst,
+               axiLiteReadMasters(0)  => axilReadMasters(PHY_INDEX_C),
+               axiLiteReadSlaves(0)   => axilReadSlaves(PHY_INDEX_C),
+               axiLiteWriteMasters(0) => axilWriteMasters(PHY_INDEX_C),
+               axiLiteWriteSlaves(0)  => axilWriteSlaves(PHY_INDEX_C),
+               -- Misc. Signals
+               extRst                 => extReset,
+               phyClk                 => ethClk,
+               phyRst                 => ethRst,
+               phyReady(0)            => phyReady,
+               refClkOut              => refClk,
+               -- MGT Clock Port
+               gtClkP                 => ethClkP,
+               gtClkN                 => ethClkN,
+               -- MGT Ports
+               gtTxP(0)               => ethTxP,
+               gtTxN(0)               => ethTxN,
+               gtRxP(0)               => ethRxP,
+               gtRxN(0)               => ethRxN);
+      end generate;
+   end generate GEN_FULL_PHY;
+
+   GEN_ONLY_MAC : if PHY_BYPASS_G = true generate
+      -------------------------------------------------------------------------
+      -- Gen Clock
+      -------------------------------------------------------------------------
+      IBUFDS_1 : IBUFDS
          port map (
-            -- Local Configurations
-            localMac(0)            => localMac,
-            -- Streaming DMA Interface
-            dmaClk(0)              => ethClk,
-            dmaRst(0)              => ethRst,
-            dmaIbMasters(0)        => obMacMaster,
-            dmaIbSlaves(0)         => obMacSlave,
-            dmaObMasters(0)        => ibMacMaster,
-            dmaObSlaves(0)         => ibMacSlave,
-            -- Slave AXI-Lite Interface
-            axiLiteClk(0)          => ethClk,
-            axiLiteRst(0)          => ethRst,
-            axiLiteReadMasters(0)  => axilReadMasters(PHY_INDEX_C),
-            axiLiteReadSlaves(0)   => axilReadSlaves(PHY_INDEX_C),
-            axiLiteWriteMasters(0) => axilWriteMasters(PHY_INDEX_C),
-            axiLiteWriteSlaves(0)  => axilWriteSlaves(PHY_INDEX_C),
-            -- Misc. Signals
-            extRst                 => extReset,
-            phyClk                 => ethClk,
-            phyRst                 => ethRst,
-            phyReady(0)            => phyReady,
-            refClkOut              => refClk,
-            -- MGT Clock Port
-            gtClkP                 => ethClkP,
-            gtClkN                 => ethClkN,
-            -- MGT Ports
-            gtTxP(0)               => ethTxP,
-            gtTxN(0)               => ethTxN,
-            gtRxP(0)               => ethRxP,
-            gtRxN(0)               => ethRxN);
-   end generate;
+            O  => ethClk,
+            I  => ethClkP,
+            IB => ethClkN
+            );
+
+      GEN_MAC : if MAC_BYPASS_G = false generate
+         --------------------
+         -- Ethernet MAC core
+         --------------------
+         U_MAC : entity surf.EthMacTop
+            generic map (
+               TPD_G         => TPD_G,
+               JUMBO_G       => true,
+               PAUSE_EN_G    => true,
+               ROCEV2_EN_G   => false,
+               PHY_TYPE_G    => "XGMII",
+               PRIM_CONFIG_G => EMAC_AXIS_CONFIG_C)
+            port map (
+               -- Primary Interface
+               primClk         => ethClk,
+               primRst         => ethRst,
+               ibMacPrimMaster => ibMacMaster,
+               ibMacPrimSlave  => ibMacSlave,
+               obMacPrimMaster => obMacMaster,
+               obMacPrimSlave  => obMacSlave,
+               -- Ethernet Interface
+               ethClk          => ethClock,
+               ethRst          => ethReset,
+               ethConfig       => ethConfig(0),
+               phyReady        => '1',
+               -- XGMII PHY Interface
+               xgmiiRxd        => xgmiiRxd,
+               xgmiiRxc        => xgmiiRxc,
+               xgmiiTxd        => xgmiiTxd,
+               xgmiiTxc        => xgmiiTxc
+               );
+         ethConfig(0).macAddress <= MAC_ADDR_C;
+      end generate GEN_MAC;
+
+      GEN_UDP : if MAC_BYPASS_G = true generate
+         udpTxMaster <= obMacMaster;
+         udpTxSlave  <= obMacSlave;
+         udpRxMaster <= ibMacMaster;
+         udpRxSlave  <= ibMacSlave;
+      end generate GEN_UDP;
+   end generate GEN_ONLY_MAC;
 
    ------------------------------------
    -- IPv4/ARP/UDP/DHCP Ethernet Layers

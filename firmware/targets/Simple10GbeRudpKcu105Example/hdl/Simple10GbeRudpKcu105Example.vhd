@@ -26,33 +26,46 @@ entity Simple10GbeRudpKcu105Example is
       BUILD_INFO_G : BuildInfoType;
       SIMULATION_G : boolean          := false;
       IP_ADDR_G    : slv(31 downto 0) := x"0A02A8C0";  -- 192.168.2.10
+      PHY_BYPASS_G : false;
+      MAC_BYPASS_G : false;
       DHCP_G       : boolean          := false);
    port (
       -- I2C Ports
-      sfpTxDisL  : out   sl;
-      i2cRstL    : out   sl;
-      i2cScl     : inout sl;
-      i2cSda     : inout sl;
+      sfpTxDisL   : out   sl;
+      i2cRstL     : out   sl;
+      i2cScl      : inout sl;
+      i2cSda      : inout sl;
       -- XADC Ports
-      vPIn       : in    sl;
-      vNIn       : in    sl;
+      vPIn        : in    sl;
+      vNIn        : in    sl;
       -- System Ports
-      emcClk     : in    sl;
-      extRst     : in    sl;
-      led        : out   slv(7 downto 0);
+      emcClk      : in    sl;
+      extRst      : in    sl;
+      led         : out   slv(7 downto 0);
       -- Boot Memory Ports
-      flashCsL   : out   sl;
-      flashMosi  : out   sl;
-      flashMiso  : in    sl;
-      flashHoldL : out   sl;
-      flashWp    : out   sl;
+      flashCsL    : out   sl;
+      flashMosi   : out   sl;
+      flashMiso   : in    sl;
+      flashHoldL  : out   sl;
+      flashWp     : out   sl;
       -- ETH GT Pins
-      ethClkP    : in    sl;
-      ethClkN    : in    sl;
-      ethRxP     : in    sl;
-      ethRxN     : in    sl;
-      ethTxP     : out   sl;
-      ethTxN     : out   sl);
+      ethClkP     : in    sl;
+      ethClkN     : in    sl;
+      ethRxP      : in    sl;
+      ethRxN      : in    sl;
+      ethTxP      : out   sl;
+      ethTxN      : out   sl;
+      -- XGMII PHY Interface (in case PHY is bypassed)
+      xgmiiRxd    : in    slv(63 downto 0)    := (others => '0');
+      xgmiiRxc    : in    slv(7 downto 0)     := (others => '0');
+      xgmiiTxd    : out   slv(63 downto 0);
+      xgmiiTxc    : out   slv(7 downto 0);
+      -- UDP Interface (in case PHY is bypassed)
+      udpRxMaster : in    AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
+      udpRxSlave  : out   AxiStreamSlaveType;
+      udpTxMaster : out   AxiStreamMasterType;
+      udpTxSlave  : in    AxiStreamSlaveType  := AXI_STREAM_SLAVE_INIT_C
+      );
 end Simple10GbeRudpKcu105Example;
 
 architecture top_level of Simple10GbeRudpKcu105Example is
@@ -98,6 +111,8 @@ begin
          SIMULATION_G => SIMULATION_G,
          BUILD_10G_G  => true,          -- 10GbE
          IP_ADDR_G    => IP_ADDR_G,
+         PHY_BYPASS_G => PHY_BYPASS_G,
+         MAC_BYPASS_G => MAC_BYPASS_G,
          DHCP_G       => DHCP_G)
       port map (
          -- Clock and Reset
@@ -139,7 +154,18 @@ begin
          ethRxP          => ethRxP,
          ethRxN          => ethRxN,
          ethTxP          => ethTxP,
-         ethTxN          => ethTxN);
+         ethTxN          => ethTxN
+         -- XGMII PHY Interface (in case PHY is bypassed)
+         xgmiiRxd        => xgmiiRxd,
+         xgmiiRxc        => xgmiiRxc,
+         xgmiiTxd        => xgmiiTxd,
+         xgmiiTxc        => xgmiiTxc,
+         -- UDP Interface (in case PHY is bypassed)
+         udpRxMaster     => udpRxMaster,
+         udpRxSlave      => udpRxSlave,
+         udpTxMaster     => udpTxMaster,
+         udpTxSlave      => udpTxSlave
+         );
 
    ------------------------------
    -- Application Firmware Module

@@ -33,6 +33,8 @@ entity Core is
       SIMULATION_G : boolean;
       BUILD_10G_G  : boolean;
       IP_ADDR_G    : slv(31 downto 0);
+      PHY_BYPASS_G : false;
+      MAC_BYPASS_G : false;
       DHCP_G       : boolean);
    port (
       -- Clock and Reset
@@ -74,7 +76,18 @@ entity Core is
       ethRxP          : in    sl;
       ethRxN          : in    sl;
       ethTxP          : out   sl;
-      ethTxN          : out   sl);
+      ethTxN          : out   sl
+      -- XGMII PHY Interface (in case PHY is bypassed)
+      xgmiiRxd        : in    slv(63 downto 0)    := (others => '0');
+      xgmiiRxc        : in    slv(7 downto 0)     := (others => '0');
+      xgmiiTxd        : out   slv(63 downto 0);
+      xgmiiTxc        : out   slv(7 downto 0);
+      -- UDP Interface (in case PHY is bypassed)
+      udpRxMaster     : in    AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
+      udpRxSlave      : out   AxiStreamSlaveType;
+      udpTxMaster     : out   AxiStreamMasterType;
+      udpTxSlave      : in    AxiStreamSlaveType  := AXI_STREAM_SLAVE_INIT_C
+      );
 end Core;
 
 architecture mapping of Core is
@@ -183,6 +196,8 @@ begin
             BUILD_10G_G      => BUILD_10G_G,
             IP_ADDR_G        => IP_ADDR_G,
             DHCP_G           => DHCP_G,
+            PHY_BYPASS_G     => PHY_BYPASS_G,
+            MAC_BYPASS_G     => MAC_BYPASS_G,
             AXIL_BASE_ADDR_G => XBAR_CONFIG_C(ETH_INDEX_C).baseAddr)
          port map (
             -- System Ports
@@ -214,7 +229,18 @@ begin
             ethRxP           => ethRxP,
             ethRxN           => ethRxN,
             ethTxP           => ethTxP,
-            ethTxN           => ethTxN);
+            ethTxN           => ethTxN
+            -- XGMII PHY Interface (in case PHY is bypassed)
+            xgmiiRxd         => xgmiiRxd,
+            xgmiiRxc         => xgmiiRxc,
+            xgmiiTxd         => xgmiiTxd,
+            xgmiiTxc         => xgmiiTxc,
+            -- UDP Interface (in case PHY is bypassed)
+            udpRxMaster      => udpRxMaster,
+            udpRxSlave       => udpRxSlave,
+            udpTxMaster      => udpTxMaster,
+            udpTxSlave       => udpTxSlave
+            );
 
    end generate;
 
