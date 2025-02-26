@@ -139,6 +139,19 @@ class Root(pr.Root):
                 expand   = True,
             ))
 
+            if not self.sim:
+                self.add(roceEvmBoard.RoceDispatcher(
+                    offset       = 0x8100_0000,
+                    dispatchBits = 24,
+                    expand       = False,
+                ))
+
+                self.add(roceEvmBoard.RoceChecker(
+                    offset       = 0x8200_0000,
+                    dispatchBits = 24,
+                    expand       = False,
+                ))
+
         #################################################################
 
     def start(self, **kwargs):
