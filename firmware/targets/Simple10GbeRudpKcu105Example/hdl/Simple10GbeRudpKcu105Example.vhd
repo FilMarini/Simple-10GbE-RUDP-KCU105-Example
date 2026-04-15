@@ -19,6 +19,7 @@ library surf;
 use surf.StdRtlPkg.all;
 use surf.AxiStreamPkg.all;
 use surf.AxiLitePkg.all;
+use surf.RocePkg.all;
 
 library work;
 use work.CorePkg.all;
@@ -27,6 +28,7 @@ entity Simple10GbeRudpKcu105Example is
    generic (
       TPD_G        : time             := 1 ns;
       BUILD_INFO_G : BuildInfoType;
+      ROCEV2_EN_G  : boolean          := true;
       SIMULATION_G : boolean          := false;
       IP_ADDR_G    : slv(31 downto 0) := x"0A02A8C0";  -- 192.168.2.10
       DHCP_G       : boolean          := false);
@@ -93,6 +95,16 @@ architecture top_level of Simple10GbeRudpKcu105Example is
    signal axilWriteMaster : AxiLiteWriteMasterType;
    signal axilWriteSlave  : AxiLiteWriteSlaveType;
 
+   -- RoCE Engine
+   signal workReqMaster     : RoceWorkReqMasterType;
+   signal workReqSlave      : RoceWorkReqSlaveType;
+   signal workCompMaster    : RoceWorkCompMasterType;
+   signal workCompSlave     : RoceWorkCompSlaveType;
+   signal dmaReadRespMaster : RoceDmaReadRespMasterType;
+   signal dmaReadRespSlave  : RoceDmaReadRespSlaveType;
+   signal dmaReadReqMaster  : RoceDmaReadReqMasterType;
+   signal dmaReadReqSlave   : RoceDmaReadReqSlaveType;
+
 begin
 
    led(7) <= '1';
@@ -111,64 +123,75 @@ begin
       generic map (
          TPD_G        => TPD_G,
          BUILD_INFO_G => BUILD_INFO_G,
+         ROCEV2_EN_G  => ROCEV2_EN_G,
          SIMULATION_G => SIMULATION_G,
          ETH_BUILD_G  => SFP_10G_C,
          IP_ADDR_G    => IP_ADDR_G,
          DHCP_G       => DHCP_G)
       port map (
          -- Clock and Reset
-         axilClk         => axilClk,
-         axilRst         => axilRst,
+         axilClk           => axilClk,
+         axilRst           => axilRst,
          -- AXI-Stream Interface
-         ibRudpMaster    => ibRudpMaster,
-         ibRudpSlave     => ibRudpSlave,
-         obRudpMaster    => obRudpMaster,
-         obRudpSlave     => obRudpSlave,
+         ibRudpMaster      => ibRudpMaster,
+         ibRudpSlave       => ibRudpSlave,
+         obRudpMaster      => obRudpMaster,
+         obRudpSlave       => obRudpSlave,
          -- AXI-Lite Interface
-         axilReadMaster  => axilReadMaster,
-         axilReadSlave   => axilReadSlave,
-         axilWriteMaster => axilWriteMaster,
-         axilWriteSlave  => axilWriteSlave,
+         axilReadMaster    => axilReadMaster,
+         axilReadSlave     => axilReadSlave,
+         axilWriteMaster   => axilWriteMaster,
+         axilWriteSlave    => axilWriteSlave,
+         -- RoCE Work Request/Completion Interface
+         workReqMaster     => workReqMaster,
+         workReqSlave      => workReqSlave,
+         workCompMaster    => workCompMaster,
+         workCompSlave     => workCompSlave,
+         -- RoCE DMA Interface
+         dmaReadRespMaster => dmaReadRespMaster,
+         dmaReadRespSlave  => dmaReadRespSlave,
+         dmaReadReqMaster  => dmaReadReqMaster,
+         dmaReadReqSlave   => dmaReadReqSlave,
          -- I2C Ports
-         sfpTxDisL       => sfpTxDisL,
-         i2cRstL         => i2cRstL,
-         i2cScl          => i2cScl,
-         i2cSda          => i2cSda,
+         sfpTxDisL         => sfpTxDisL,
+         i2cRstL           => i2cRstL,
+         i2cScl            => i2cScl,
+         i2cSda            => i2cSda,
          -- SYSMON Ports
-         vPIn            => vPIn,
-         vNIn            => vNIn,
+         vPIn              => vPIn,
+         vNIn              => vNIn,
          -- System Ports
-         extRst          => extRst,
-         sysClk300P      => sysClk300P,
-         sysClk300N      => sysClk300N,
-         emcClk          => emcClk,
-         heartbeat       => heartbeat,
-         phyReady        => phyReady,
-         rssiLinkUp      => rssiLinkUp,
+         extRst            => extRst,
+         sysClk300P        => sysClk300P,
+         sysClk300N        => sysClk300N,
+         emcClk            => emcClk,
+         heartbeat         => heartbeat,
+         phyReady          => phyReady,
+         rssiLinkUp        => rssiLinkUp,
          -- Boot Memory Ports
-         flashCsL        => flashCsL,
-         flashMosi       => flashMosi,
-         flashMiso       => flashMiso,
-         flashHoldL      => flashHoldL,
-         flashWp         => flashWp,
+         flashCsL          => flashCsL,
+         flashMosi         => flashMosi,
+         flashMiso         => flashMiso,
+         flashHoldL        => flashHoldL,
+         flashWp           => flashWp,
          -- SFP ETH Ports
-         ethClkP         => ethClkP,
-         ethClkN         => ethClkN,
-         ethRxP          => ethRxP,
-         ethRxN          => ethRxN,
-         ethTxP          => ethTxP,
-         ethTxN          => ethTxN,
+         ethClkP           => ethClkP,
+         ethClkN           => ethClkN,
+         ethRxP            => ethRxP,
+         ethRxN            => ethRxN,
+         ethTxP            => ethTxP,
+         ethTxN            => ethTxN,
          -- RJ45 ETH Ports
-         phyClkP         => phyClkP,
-         phyClkN         => phyClkN,
-         phyRxP          => phyRxP,
-         phyRxN          => phyRxN,
-         phyTxP          => phyTxP,
-         phyTxN          => phyTxN,
-         phyMdc          => phyMdc,
-         phyMdio         => phyMdio,
-         phyRstN         => phyRstN,
-         phyIrqN         => phyIrqN);
+         phyClkP           => phyClkP,
+         phyClkN           => phyClkN,
+         phyRxP            => phyRxP,
+         phyRxN            => phyRxN,
+         phyTxP            => phyTxP,
+         phyTxN            => phyTxN,
+         phyMdc            => phyMdc,
+         phyMdio           => phyMdio,
+         phyRstN           => phyRstN,
+         phyIrqN           => phyIrqN);
 
    ------------------------------
    -- Application Firmware Module
@@ -176,20 +199,31 @@ begin
    U_App : entity work.App
       generic map (
          TPD_G        => TPD_G,
+         ROCEV2_EN_G  => ROCEV2_EN_G,
          SIMULATION_G => SIMULATION_G)
       port map (
          -- Clock and Reset
-         axilClk         => axilClk,
-         axilRst         => axilRst,
+         axilClk           => axilClk,
+         axilRst           => axilRst,
          -- AXI-Stream Interface
-         ibRudpMaster    => ibRudpMaster,
-         ibRudpSlave     => ibRudpSlave,
-         obRudpMaster    => obRudpMaster,
-         obRudpSlave     => obRudpSlave,
+         ibRudpMaster      => ibRudpMaster,
+         ibRudpSlave       => ibRudpSlave,
+         obRudpMaster      => obRudpMaster,
+         obRudpSlave       => obRudpSlave,
+         -- RoCE Work Request/Completion Interface
+         workReqMaster     => workReqMaster,
+         workReqSlave      => workReqSlave,
+         workCompMaster    => workCompMaster,
+         workCompSlave     => workCompSlave,
+         -- RoCE DMA Interface
+         dmaReadRespMaster => dmaReadRespMaster,
+         dmaReadRespSlave  => dmaReadRespSlave,
+         dmaReadReqMaster  => dmaReadReqMaster,
+         dmaReadReqSlave   => dmaReadReqSlave,
          -- AXI-Lite Interface
-         axilReadMaster  => axilReadMaster,
-         axilReadSlave   => axilReadSlave,
-         axilWriteMaster => axilWriteMaster,
-         axilWriteSlave  => axilWriteSlave);
+         axilReadMaster    => axilReadMaster,
+         axilReadSlave     => axilReadSlave,
+         axilWriteMaster   => axilWriteMaster,
+         axilWriteSlave    => axilWriteSlave);
 
 end top_level;

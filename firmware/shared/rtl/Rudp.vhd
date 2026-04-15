@@ -21,6 +21,7 @@ use surf.AxiStreamPkg.all;
 use surf.AxiLitePkg.all;
 use surf.EthMacPkg.all;
 use surf.RssiPkg.all;
+use surf.RocePkg.all;
 
 library work;
 use work.CorePkg.all;
@@ -30,55 +31,65 @@ use unisim.vcomponents.all;
 
 entity Rudp is
    generic (
-      TPD_G            : time := 1 ns;
+      TPD_G            : time    := 1 ns;
       ETH_BUILD_G      : BuildEthType;
       IP_ADDR_G        : slv(31 downto 0);
       DHCP_G           : boolean;
+      ROCEV2_EN_G      : boolean := false;
       AXIL_BASE_ADDR_G : slv(31 downto 0));
    port (
       -- System Ports
-      extRst           : in    sl;
-      sysClk300P       : in    sl;
-      sysClk300N       : in    sl;
+      extRst            : in    sl;
+      sysClk300P        : in    sl;
+      sysClk300N        : in    sl;
       -- Ethernet Status
-      phyReady         : out   sl;
-      rssiLinkUp       : out   slv(1 downto 0);
+      phyReady          : out   sl;
+      rssiLinkUp        : out   slv(1 downto 0);
       -- Clock and Reset
-      axilClk          : out   sl;
-      axilRst          : out   sl;
+      axilClk           : out   sl;
+      axilRst           : out   sl;
       -- AXI-Stream Interface
-      ibRudpMaster     : in    AxiStreamMasterType;
-      ibRudpSlave      : out   AxiStreamSlaveType;
-      obRudpMaster     : out   AxiStreamMasterType;
-      obRudpSlave      : in    AxiStreamSlaveType;
+      ibRudpMaster      : in    AxiStreamMasterType;
+      ibRudpSlave       : out   AxiStreamSlaveType;
+      obRudpMaster      : out   AxiStreamMasterType;
+      obRudpSlave       : in    AxiStreamSlaveType;
       -- Master AXI-Lite Interface
-      mAxilReadMaster  : out   AxiLiteReadMasterType;
-      mAxilReadSlave   : in    AxiLiteReadSlaveType;
-      mAxilWriteMaster : out   AxiLiteWriteMasterType;
-      mAxilWriteSlave  : in    AxiLiteWriteSlaveType;
+      mAxilReadMaster   : out   AxiLiteReadMasterType;
+      mAxilReadSlave    : in    AxiLiteReadSlaveType;
+      mAxilWriteMaster  : out   AxiLiteWriteMasterType;
+      mAxilWriteSlave   : in    AxiLiteWriteSlaveType;
       -- Slave AXI-Lite Interfaces
-      sAxilReadMaster  : in    AxiLiteReadMasterType;
-      sAxilReadSlave   : out   AxiLiteReadSlaveType;
-      sAxilWriteMaster : in    AxiLiteWriteMasterType;
-      sAxilWriteSlave  : out   AxiLiteWriteSlaveType;
+      sAxilReadMaster   : in    AxiLiteReadMasterType;
+      sAxilReadSlave    : out   AxiLiteReadSlaveType;
+      sAxilWriteMaster  : in    AxiLiteWriteMasterType;
+      sAxilWriteSlave   : out   AxiLiteWriteSlaveType;
+      -- RoCE engine Interface
+      workReqMaster     : in    RoceWorkReqMasterType     := ROCE_WORK_REQ_MASTER_INIT_C;
+      workReqSlave      : out   RoceWorkReqSlaveType;
+      workCompMaster    : out   RoceWorkCompMasterType;
+      workCompSlave     : in    RoceWorkCompSlaveType     := ROCE_WORK_COMP_SLAVE_INIT_C;
+      dmaReadRespMaster : in    RoceDmaReadRespMasterType := ROCE_DMA_READ_RESP_MASTER_INIT_C;
+      dmaReadRespSlave  : out   RoceDmaReadRespSlaveType;
+      dmaReadReqMaster  : out   RoceDmaReadReqMasterType;
+      dmaReadReqSlave   : in    RoceDmaReadReqSlaveType   := ROCE_DMA_READ_REQ_SLAVE_INIT_C;
       -- SFP ETH Ports
-      ethClkP          : in    sl;
-      ethClkN          : in    sl;
-      ethRxP           : in    sl;
-      ethRxN           : in    sl;
-      ethTxP           : out   sl;
-      ethTxN           : out   sl;
+      ethClkP           : in    sl;
+      ethClkN           : in    sl;
+      ethRxP            : in    sl;
+      ethRxN            : in    sl;
+      ethTxP            : out   sl;
+      ethTxN            : out   sl;
       -- RJ45 ETH Ports
-      phyClkP          : in    sl;
-      phyClkN          : in    sl;
-      phyRxP           : in    sl;
-      phyRxN           : in    sl;
-      phyTxP           : out   sl;
-      phyTxN           : out   sl;
-      phyMdc           : out   sl;
-      phyMdio          : inout sl;
-      phyRstN          : out   sl;
-      phyIrqN          : in    sl);
+      phyClkP           : in    sl;
+      phyClkN           : in    sl;
+      phyRxP            : in    sl;
+      phyRxN            : in    sl;
+      phyTxP            : out   sl;
+      phyTxN            : out   sl;
+      phyMdc            : out   sl;
+      phyMdio           : inout sl;
+      phyRstN           : out   sl;
+      phyIrqN           : in    sl);
 end Rudp;
 
 architecture mapping of Rudp is
@@ -87,8 +98,9 @@ architecture mapping of Rudp is
    constant UDP_INDEX_C      : natural := 1;
    constant RSSI_INDEX_C     : natural := 2;  -- 2:3
    constant AXIS_MON_INDEX_C : natural := 4;
+   constant ROCE_INDEX_C     : natural := 5;
 
-   constant NUM_AXIL_MASTERS_C : positive := 5;
+   constant NUM_AXIL_MASTERS_C : positive := 6;
 
    constant XBAR_CONFIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 20, 16);
 
@@ -223,6 +235,7 @@ begin
             TPD_G        => TPD_G,
             NUM_LANE_G   => 1,
             PAUSE_EN_G   => true,       -- Enable ETH pause
+            ROCEV2_EN_G  => ROCEV2_EN_G,  -- Enable RoCEv2
             EN_AXI_REG_G => true)       -- Enable diagnostic AXI-Lite interface
          port map (
             -- Local Configurations
@@ -402,39 +415,46 @@ begin
    U_UDP : entity surf.UdpEngineWrapper
       generic map (
          -- Simulation Generics
-         TPD_G          => TPD_G,
+         TPD_G               => TPD_G,
          -- UDP Server Generics
-         SERVER_EN_G    => true,        -- UDP Server only
-         SERVER_SIZE_G  => SERVER_SIZE_C,
-         SERVER_PORTS_G => SERVER_PORTS_C,
+         SERVER_EN_G         => true,         -- UDP Server only
+         SERVER_SIZE_G       => SERVER_SIZE_C,
+         SERVER_PORTS_G      => SERVER_PORTS_C,
          -- UDP Client Generics
-         CLIENT_EN_G    => false,       -- UDP Server only
+         CLIENT_EN_G         => ROCEV2_EN_G,  -- UDP Server only if not RoCE
+         CLIENT_SIZE_G       => 1,
+         CLIENT_PORTS_G      => (0 => 4791),
+         CLIENT_EXT_CONFIG_G => false,
          -- General IPv4/ARP/DHCP Generics
-         DHCP_G         => DHCP_G,
-         CLK_FREQ_G     => CLK_FREQUENCY_C,
-         COMM_TIMEOUT_G => 10)          -- Timeout used for ARP and DHCP
+         DHCP_G              => DHCP_G,
+         CLK_FREQ_G          => CLK_FREQUENCY_C,
+         COMM_TIMEOUT_G      => 10)           -- Timeout used for ARP and DHCP
       port map (
          -- Local Configurations
-         localMac        => localMac,
-         localIp         => localIp,
+         localMac           => localMac,
+         localIp            => localIp,
          -- Interface to Ethernet Media Access Controller (MAC)
-         obMacMaster     => obMacMaster,
-         obMacSlave      => obMacSlave,
-         ibMacMaster     => ibMacMaster,
-         ibMacSlave      => ibMacSlave,
+         obMacMaster        => obMacMaster,
+         obMacSlave         => obMacSlave,
+         ibMacMaster        => ibMacMaster,
+         ibMacSlave         => ibMacSlave,
          -- Interface to UDP Server engine(s)
-         obServerMasters => obServerMasters,
-         obServerSlaves  => obServerSlaves,
-         ibServerMasters => ibServerMasters,
-         ibServerSlaves  => ibServerSlaves,
+         obServerMasters    => obServerMasters,
+         obServerSlaves     => obServerSlaves,
+         ibServerMasters    => ibServerMasters,
+         ibServerSlaves     => ibServerSlaves,
+         obClientMasters(0) => obUdpMaster,
+         obClientSlaves(0)  => obUdpSlave,
+         ibClientMasters(0) => ibUdpMaster,
+         ibClientSlaves(0)  => ibUdpSlave,
          -- AXI-Lite Interface
-         axilReadMaster  => axilReadMasters(UDP_INDEX_C),
-         axilReadSlave   => axilReadSlaves(UDP_INDEX_C),
-         axilWriteMaster => axilWriteMasters(UDP_INDEX_C),
-         axilWriteSlave  => axilWriteSlaves(UDP_INDEX_C),
+         axilReadMaster     => axilReadMasters(UDP_INDEX_C),
+         axilReadSlave      => axilReadSlaves(UDP_INDEX_C),
+         axilWriteMaster    => axilWriteMasters(UDP_INDEX_C),
+         axilWriteSlave     => axilWriteSlaves(UDP_INDEX_C),
          -- Clock and Reset
-         clk             => ethClk,
-         rst             => ethRst);
+         clk                => ethClk,
+         rst                => ethRst);
 
    -----------------------------------------------------------------
    -- Xilinx Virtual Cable (XVC)
@@ -536,6 +556,50 @@ begin
    obRudpMaster     <= rssiObMasters(1);
    rssiObSlaves(1)  <= obRudpSlave;
 
+   ---------------------------------------------------------------
+   -- RoCEv2 Engine
+   ---------------------------------------------------------------
+   GEN_ROCE_ENGINE : if ROCEV2_EN_G generate
+      U_RoceEngineWrapper : entity surf.RoceEngineWrapper
+         generic map (
+            TPD_G             => TPD_G,
+            EXT_ROCE_CONFIG_G => false,
+            AXIL_BASE_ADDR_G  => XBAR_CONFIG_C(ROCE_INDEX_C).baseAddr)
+         port map (
+            clk                 => ethClk,
+            rst                 => ethRst,
+            -- Work Requests and Comps
+            workReqMaster       => workReqMaster,
+            workReqSlave        => workReqSlave,
+            workCompMaster      => workCompMaster,
+            workCompSlave       => workCompSlave,
+            -- Interface to UDP Engine
+            obUdpMaster         => obUdpMaster,
+            obUdpSlave          => obUdpSlave,
+            ibUdpMaster         => ibUdpMaster,
+            ibUdpSlave          => ibUdpSlave,
+            -- MetaData Config Bus
+            sAxisMetaDataMaster => sAxisMetaDataMaster,
+            sAxisMetaDataSlave  => sAxisMetaDataSlave,
+            mAxisMetaDataMaster => mAxisMetaDataMaster,
+            mAxisMetaDataSlave  => mAxisMetaDataSlave,
+            -- Axi-Lite interface
+            axilReadMaster      => axilReadMasters(ROCE_INDEX_C),
+            axilReadSlave       => axilReadSlaves(ROCE_INDEX_C),
+            axilWriteMaster     => axilWriteMasters(ROCE_INDEX_C),
+            axilWriteSlave      => axilWriteSlaves(ROCE_INDEX_C),
+            -- DMA Interface
+            dmaReadRespMaster   => dmaReadRespMaster,
+            dmaReadRespSlave    => dmaReadRespSlave,
+            dmaReadReqMaster    => dmaReadReqMaster,
+            dmaReadReqSlave     => dmaReadReqSlave
+            );
+   end generate GEN_ROCE_ENGINE;
+
+   BYPASS_ROCE_ENGINE : if not ROCEV2_EN_G generate
+      obUdpSlave  <= AXI_STREAM_SLAVE_INIT_C;
+      ibUdpMaster <= AXI_STREAM_MASTER_INIT_C;
+   end generate BYPASS_ROCE_ENGINE;
    ------------------------
    -- AXI Stream Monitoring
    ------------------------

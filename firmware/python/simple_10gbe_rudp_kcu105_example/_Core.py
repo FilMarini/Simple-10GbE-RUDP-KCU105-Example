@@ -22,6 +22,7 @@ class Core(pr.Device):
     def __init__( self,
             sim      = False,
             promProg = False,
+            rocev2   = False,
         **kwargs):
         super().__init__(**kwargs)
 
@@ -54,6 +55,13 @@ class Core(pr.Device):
                 numSrv  = 2,
                 enabled = not sim,
             ))
+
+            if rocev2:
+                self.add(roce.RoceEngine(
+                    offset  = 0x0015_0000,
+                    expand  = False,
+                    enabled = not sim,
+                ))
 
             for i in range(2):
                 self.add(rssi.RssiCore(

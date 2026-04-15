@@ -13,7 +13,11 @@ import pyrogue as pr
 import simple_10gbe_rudp_kcu105_example as devBoard
 
 class App(pr.Device):
-    def __init__( self,sim=False,**kwargs):
+    def __init__( self,
+                  sim=False,
+                  rocev2=False,
+                  dispatchBits=24,
+                  **kwargs):
         super().__init__(**kwargs)
 
         self.add(devBoard.AppTx(
@@ -24,3 +28,16 @@ class App(pr.Device):
         self.add(devBoard.AppMem(
             offset  = 0x0001_0000,
         ))
+
+        if rocev2:
+            self.add(roceEvmBoard.RoceDispatcher(
+                offset       = 0x0002_0000,
+                dispatchBits = dispatchBits,
+                expand       = False,
+            ))
+
+            self.add(roceEvmBoard.RoceChecker(
+                offset       = 0x0003_0000,
+                dispatchBits = dispatchBits,
+                expand       = False,
+            ))

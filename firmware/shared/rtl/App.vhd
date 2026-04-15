@@ -19,33 +19,47 @@ library surf;
 use surf.StdRtlPkg.all;
 use surf.AxiStreamPkg.all;
 use surf.AxiLitePkg.all;
+use surf.RocePkg.all;
 
 entity App is
    generic (
       TPD_G        : time    := 1 ns;
+      ROCEV2_EN_G  : boolean := false;
       SIMULATION_G : boolean := false);
    port (
       -- Clock and Reset
-      axilClk         : in  sl;
-      axilRst         : in  sl;
+      axilClk           : in  sl;
+      axilRst           : in  sl;
       -- AXI-Stream Interface
-      ibRudpMaster    : out AxiStreamMasterType;
-      ibRudpSlave     : in  AxiStreamSlaveType;
-      obRudpMaster    : in  AxiStreamMasterType;
-      obRudpSlave     : out AxiStreamSlaveType;
+      ibRudpMaster      : out AxiStreamMasterType;
+      ibRudpSlave       : in  AxiStreamSlaveType;
+      obRudpMaster      : in  AxiStreamMasterType;
+      obRudpSlave       : out AxiStreamSlaveType;
+      -- RoCE Work Request/Completion Interface
+      workReqMaster     : in  RoceWorkReqMasterType     := ROCE_WORK_REQ_MASTER_INIT_C;
+      workReqSlave      : out RoceWorkReqSlaveType;
+      workCompMaster    : out RoceWorkCompMasterType;
+      workCompSlave     : in  RoceWorkCompSlaveType     := ROCE_WORK_REQ_MASTER_INIT_C;
+      -- RoCE DMA Interface
+      dmaReadRespMaster : in  RoceDmaReadRespMasterType := ROCE_DMA_READ_RESP_MASTER_INIT_C;
+      dmaReadRespSlave  : out RoceDmaReadRespSlaveType;
+      dmaReadReqMaster  : out RoceDmaReadReqMasterType;
+      dmaReadReqSlave   : in  RoceDmaReadReqSlaveType   := ROCE_DMA_READ_REQ_SLAVE_INIT_C;
       -- AXI-Lite Interface
-      axilReadMaster  : in  AxiLiteReadMasterType;
-      axilReadSlave   : out AxiLiteReadSlaveType;
-      axilWriteMaster : in  AxiLiteWriteMasterType;
-      axilWriteSlave  : out AxiLiteWriteSlaveType);
+      axilReadMaster    : in  AxiLiteReadMasterType;
+      axilReadSlave     : out AxiLiteReadSlaveType;
+      axilWriteMaster   : in  AxiLiteWriteMasterType;
+      axilWriteSlave    : out AxiLiteWriteSlaveType);
 end App;
 
 architecture mapping of App is
 
-   constant TX_INDEX_C  : natural := 0;
-   constant MEM_INDEX_C : natural := 1;
+   constant TX_INDEX_C              : natural := 0;
+   constant MEM_INDEX_C             : natural := 1;
+   constant ROCE_DISPATCHER_INDEX_C : natural := 2;
+   constant ROCE_CHECKER_INDEX_C    : natural := 3;
 
-   constant NUM_AXIL_MASTERS_C : positive := 2;
+   constant NUM_AXIL_MASTERS_C : positive := 4;
 
    constant XBAR_CONFIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, x"8000_0000", 20, 16);
 
@@ -53,6 +67,8 @@ architecture mapping of App is
    signal axilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0) := (others => AXI_LITE_WRITE_SLAVE_EMPTY_SLVERR_C);
    signal axilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
    signal axilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0)  := (others => AXI_LITE_READ_SLAVE_EMPTY_SLVERR_C);
+
+   signal startingDispatch : sl;
 
 begin
 
@@ -120,5 +136,56 @@ begin
          axiReadSlave   => axilReadSlaves(MEM_INDEX_C),
          axiWriteMaster => axilWriteMasters(MEM_INDEX_C),
          axiWriteSlave  => axilWriteSlaves(MEM_INDEX_C));
+
+   GEN_ROCEV2_APP_LOGIC : if ROCEV2_EN_G generate
+      --------------------------------
+      -- DmaTestPatternServer
+      --------------------------------
+      U_DmaTestPatternServer : entity work.DmaTestPatternServer
+         generic map (
+            TPD_G => TPD_G)
+         port map (
+            RoceClk           => axilClk,
+            RoceRst           => axilRst,
+            dmaReadReqMaster  => dmaReadReqMaster,
+            dmaReadReqSlave   => dmaReadReqSlave,
+            dmaReadRespMaster => dmaReadRespMaster,
+            dmaReadRespSlave  => dmaReadRespSlave);
+
+      --------------------------------
+      -- WorkReqDispatcher
+      --------------------------------
+      U_WorkReqDispatcher : entity work.WorkReqDispatcher
+         generic map (
+            TPD_G => TPD_G)
+         port map (
+            RoceClk          => axilClk,
+            RoceRst          => axilRst,
+            workReqMaster    => workReqMaster,
+            workReqSlave     => workReqSlave,
+            startingDispatch => startingDispatch,
+            axilReadMaster   => axilReadMastersX(ROCE_DISPATCHER_INDEX_C),
+            axilReadSlave    => axilReadSlavesX(ROCE_DISPATCHER_INDEX_C),
+            axilWriteMaster  => axilWriteMastersX(ROCE_DISPATCHER_INDEX_C),
+            axilWriteSlave   => axilWriteSlavesX(ROCE_DISPATCHER_INDEX_C));
+
+      --------------------------------
+      -- WorkCompChecker
+      --------------------------------
+      U_WorkCompChecker : entity work.WorkCompChecker
+         generic map (
+            TPD_G => TPD_G
+            )
+         port map (
+            RoceClk          => axilClk,
+            RoceRst          => axilRst,
+            WorkCompMaster   => workCompMaster,
+            WorkCompSlave    => workCompSlave,
+            startingDispatch => startingDispatch,
+            axilReadMaster   => axilReadMastersX(ROCE_CHECKER_INDEX_C),
+            axilReadSlave    => axilReadSlavesX(ROCE_CHECKER_INDEX_C),
+            axilWriteMaster  => axilWriteMastersX(ROCE_CHECKER_INDEX_C),
+            axilWriteSlave   => axilWriteSlavesX(ROCE_CHECKER_INDEX_C));
+   end generate GEN_ROCEV2_APP_LOGIC;
 
 end mapping;
