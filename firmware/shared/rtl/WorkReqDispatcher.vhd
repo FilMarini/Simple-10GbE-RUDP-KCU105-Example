@@ -212,7 +212,7 @@ begin  -- architecture rtl
                -- incoming RDMA frames to channel 1 (dataWriter.getChannel(1)).
                -- Bits [7:0] of immDt are decoded by Server.cpp as the rogue stream
                -- channel; channel 0 is reserved for the UDP/RSSI stream.
-               v.txMaster.immDt     := x"00000001";
+               v.txMaster.immDt     := conv_std_logic_vector(1, v.txMaster.immDt'length);
                v.txMaster.rKeyToInv := (others => '0');
                v.txMaster.srqn      := (others => '0');
                v.txMaster.dQpn      := (others => '0');

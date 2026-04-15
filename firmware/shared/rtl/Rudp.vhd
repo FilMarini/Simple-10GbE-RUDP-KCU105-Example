@@ -135,6 +135,10 @@ architecture mapping of Rudp is
    signal obServerSlaves  : AxiStreamSlaveArray(SERVER_SIZE_C-1 downto 0);
    signal ibServerMasters : AxiStreamMasterArray(SERVER_SIZE_C-1 downto 0);
    signal ibServerSlaves  : AxiStreamSlaveArray(SERVER_SIZE_C-1 downto 0);
+   signal obUdpMaster     : AxiStreamMasterType;
+   signal obUdpSlave      : AxiStreamSlaveType;
+   signal ibUdpMaster     : AxiStreamMasterType;
+   signal ibUdpSlave      : AxiStreamSlaveType;
 
    -- One RSSI per UDP port (which is why SERVER_SIZE_C used instead of SERVER_SIZE_C)
    signal rssiIbMasters : AxiStreamMasterArray(SERVER_SIZE_C-1 downto 0);
@@ -578,11 +582,6 @@ begin
             obUdpSlave          => obUdpSlave,
             ibUdpMaster         => ibUdpMaster,
             ibUdpSlave          => ibUdpSlave,
-            -- MetaData Config Bus
-            sAxisMetaDataMaster => sAxisMetaDataMaster,
-            sAxisMetaDataSlave  => sAxisMetaDataSlave,
-            mAxisMetaDataMaster => mAxisMetaDataMaster,
-            mAxisMetaDataSlave  => mAxisMetaDataSlave,
             -- Axi-Lite interface
             axilReadMaster      => axilReadMasters(ROCE_INDEX_C),
             axilReadSlave       => axilReadSlaves(ROCE_INDEX_C),

@@ -36,15 +36,15 @@ entity App is
       obRudpMaster      : in  AxiStreamMasterType;
       obRudpSlave       : out AxiStreamSlaveType;
       -- RoCE Work Request/Completion Interface
-      workReqMaster     : in  RoceWorkReqMasterType     := ROCE_WORK_REQ_MASTER_INIT_C;
-      workReqSlave      : out RoceWorkReqSlaveType;
-      workCompMaster    : out RoceWorkCompMasterType;
-      workCompSlave     : in  RoceWorkCompSlaveType     := ROCE_WORK_REQ_MASTER_INIT_C;
+      workReqMaster     : out RoceWorkReqMasterType;
+      workReqSlave      : in  RoceWorkReqSlaveType     := ROCE_WORK_REQ_SLAVE_INIT_C;
+      workCompMaster    : in  RoceWorkCompMasterType   := ROCE_WORK_COMP_MASTER_INIT_C;
+      workCompSlave     : out RoceWorkCompSlaveType;
       -- RoCE DMA Interface
-      dmaReadRespMaster : in  RoceDmaReadRespMasterType := ROCE_DMA_READ_RESP_MASTER_INIT_C;
-      dmaReadRespSlave  : out RoceDmaReadRespSlaveType;
-      dmaReadReqMaster  : out RoceDmaReadReqMasterType;
-      dmaReadReqSlave   : in  RoceDmaReadReqSlaveType   := ROCE_DMA_READ_REQ_SLAVE_INIT_C;
+      dmaReadRespMaster : out RoceDmaReadRespMasterType;
+      dmaReadRespSlave  : in  RoceDmaReadRespSlaveType := ROCE_DMA_READ_RESP_SLAVE_INIT_C;
+      dmaReadReqMaster  : in  RoceDmaReadReqMasterType := ROCE_DMA_READ_REQ_MASTER_INIT_C;
+      dmaReadReqSlave   : out RoceDmaReadReqSlaveType;
       -- AXI-Lite Interface
       axilReadMaster    : in  AxiLiteReadMasterType;
       axilReadSlave     : out AxiLiteReadSlaveType;
@@ -164,10 +164,10 @@ begin
             workReqMaster    => workReqMaster,
             workReqSlave     => workReqSlave,
             startingDispatch => startingDispatch,
-            axilReadMaster   => axilReadMastersX(ROCE_DISPATCHER_INDEX_C),
-            axilReadSlave    => axilReadSlavesX(ROCE_DISPATCHER_INDEX_C),
-            axilWriteMaster  => axilWriteMastersX(ROCE_DISPATCHER_INDEX_C),
-            axilWriteSlave   => axilWriteSlavesX(ROCE_DISPATCHER_INDEX_C));
+            axilReadMaster   => axilReadMasters(ROCE_DISPATCHER_INDEX_C),
+            axilReadSlave    => axilReadSlaves(ROCE_DISPATCHER_INDEX_C),
+            axilWriteMaster  => axilWriteMasters(ROCE_DISPATCHER_INDEX_C),
+            axilWriteSlave   => axilWriteSlaves(ROCE_DISPATCHER_INDEX_C));
 
       --------------------------------
       -- WorkCompChecker
@@ -182,10 +182,10 @@ begin
             WorkCompMaster   => workCompMaster,
             WorkCompSlave    => workCompSlave,
             startingDispatch => startingDispatch,
-            axilReadMaster   => axilReadMastersX(ROCE_CHECKER_INDEX_C),
-            axilReadSlave    => axilReadSlavesX(ROCE_CHECKER_INDEX_C),
-            axilWriteMaster  => axilWriteMastersX(ROCE_CHECKER_INDEX_C),
-            axilWriteSlave   => axilWriteSlavesX(ROCE_CHECKER_INDEX_C));
+            axilReadMaster   => axilReadMasters(ROCE_CHECKER_INDEX_C),
+            axilReadSlave    => axilReadSlaves(ROCE_CHECKER_INDEX_C),
+            axilWriteMaster  => axilWriteMasters(ROCE_CHECKER_INDEX_C),
+            axilWriteSlave   => axilWriteSlaves(ROCE_CHECKER_INDEX_C));
    end generate GEN_ROCEV2_APP_LOGIC;
 
 end mapping;
