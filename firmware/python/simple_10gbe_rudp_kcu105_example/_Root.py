@@ -197,6 +197,7 @@ class Root(pr.Root):
                 offset   = 0x8000_0000,
                 memBase  = self.srp,
                 sim      = self.sim,
+                rocev2   = self.useRoce,
                 expand   = True,
             ))
 

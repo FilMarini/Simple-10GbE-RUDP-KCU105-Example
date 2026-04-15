@@ -30,13 +30,13 @@ class App(pr.Device):
         ))
 
         if rocev2:
-            self.add(roceEvmBoard.RoceDispatcher(
+            self.add(devBoard.RoceDispatcher(
                 offset       = 0x0002_0000,
                 dispatchBits = dispatchBits,
                 expand       = False,
             ))
 
-            self.add(roceEvmBoard.RoceChecker(
+            self.add(devBoard.RoceChecker(
                 offset       = 0x0003_0000,
                 dispatchBits = dispatchBits,
                 expand       = False,

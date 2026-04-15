@@ -17,6 +17,7 @@ import surf.ethernet.udp         as udp
 import surf.ethernet.ten_gig     as mac
 import surf.protocols.rssi       as rssi
 import surf.xilinx               as xil
+import surf.ethernet.roce        as roce
 
 class Core(pr.Device):
     def __init__( self,
@@ -53,6 +54,7 @@ class Core(pr.Device):
             self.add(udp.UdpEngine(
                 offset  = 0x0011_0000,
                 numSrv  = 2,
+                numClt  = 1 if rocev2 else 0,
                 enabled = not sim,
             ))
 
