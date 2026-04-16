@@ -290,6 +290,7 @@ begin
             TPD_G              => TPD_G,
             NUM_LANE_G         => 1,
             PAUSE_EN_G         => true,  -- Enable ETH pause
+            ROCEV2_EN_G        => ROCEV2_EN_G,
             EN_AXI_REG_G       => true,  -- Enable diagnostic AXI-Lite interface
             -- QUAD PLL Configurations
             USE_GTREFCLK_G     => false,
@@ -373,6 +374,7 @@ begin
          generic map (
             TPD_G             => TPD_G,
             STABLE_CLK_FREQ_G => 300.0E+6,
+            ROCEV2_EN_G       => ROCEV2_EN_G,
             PAUSE_EN_G        => false,
             EN_AXIL_REG_G     => true,
             AXIS_CONFIG_G     => EMAC_AXIS_CONFIG_C)
