@@ -19,6 +19,7 @@ library surf;
 use surf.StdRtlPkg.all;
 use surf.AxiStreamPkg.all;
 use surf.AxiLitePkg.all;
+use surf.RocePkg.all;
 
 library work;
 use work.CorePkg.all;
@@ -27,7 +28,7 @@ entity Simple1GbeRudpKcu105Example is
    generic (
       TPD_G        : time             := 1 ns;
       BUILD_INFO_G : BuildInfoType;
-      ROCEV2_EN_G  : boolean          := true;
+      ROCEV2_EN_G  : boolean          := false;
       SIMULATION_G : boolean          := false;
       IP_ADDR_G    : slv(31 downto 0) := x"0A02A8C0";  -- 192.168.2.10
       DHCP_G       : boolean          := false);

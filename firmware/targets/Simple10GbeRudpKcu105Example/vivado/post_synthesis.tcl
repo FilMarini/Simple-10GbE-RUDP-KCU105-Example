@@ -18,7 +18,7 @@ source $::env(RUCKUS_PROC_TCL)
 # Bypass the debug chipscope generation via return cmd
 # ELSE ... comment out the return to include chipscope
 ######################################################
-return
+# return
 
 ############################
 ## Open the synthesis design

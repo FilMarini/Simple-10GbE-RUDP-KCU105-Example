@@ -570,7 +570,7 @@ begin
          generic map (
             TPD_G             => TPD_G,
             EXT_ROCE_CONFIG_G => false,
-            DCQCN_EN_G        => false,
+            DCQCN_EN_G        => true,
             AXIL_BASE_ADDR_G  => XBAR_CONFIG_C(ROCE_INDEX_C).baseAddr)
          port map (
             clk                 => ethClk,
