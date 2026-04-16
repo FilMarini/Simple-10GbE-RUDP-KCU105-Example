@@ -24,6 +24,7 @@ class Core(pr.Device):
             sim      = False,
             promProg = False,
             rocev2   = False,
+            dcqcn    = True,
         **kwargs):
         super().__init__(**kwargs)
 
@@ -61,6 +62,7 @@ class Core(pr.Device):
             if rocev2:
                 self.add(roce.RoceEngine(
                     offset  = 0x0015_0000,
+                    dcqcn   = dcqcn,
                     expand  = False,
                     enabled = not sim,
                 ))

@@ -76,6 +76,12 @@ if __name__ == "__main__":
         help     = "Use RoCEv2 RDMA for streaming instead of UDP/RSSI",
     )
     parser.add_argument(
+        "--useDcqcn",
+        action   = 'store_true',
+        default  = False,
+        help     = "Use RoCEv2 DCQCN for congestion control",
+    )
+    parser.add_argument(
         "--roceDevice",
         type     = str,
         required = False,
@@ -182,6 +188,7 @@ if __name__ == "__main__":
         xvcSrvEn         = False,
         # RoCEv2
         useRoce          = args.useRoce,
+        useDcqcn         = args.useDcqcn,
         roceDevice       = args.roceDevice,
         roceGidIndex     = args.roceGidIndex,
         rocePmtu         = args.rocePmtu,

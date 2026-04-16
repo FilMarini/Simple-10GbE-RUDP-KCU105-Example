@@ -45,6 +45,7 @@ class Root(pr.Root):
             # RoCEv2 options (meta mode only)
             # ----------------------------------------------------------------
             useRoce         = False,        # Add RoCEv2 RDMA receive channel alongside UDP/RSSI
+            useDcqcn        = True,
             roceDevice      = 'rxe0',       # ibverbs device name (rxe0=softRoCE, mlx5_0=HW NIC)
             roceIbPort      = 1,            # ibverbs port number
             roceGidIndex    = -1,           # GID index (-1 = auto-detect from ip)
@@ -69,6 +70,7 @@ class Root(pr.Root):
         self.promProg = promProg
         self.sim      = (ip == 'sim')
         self.useRoce  = useRoce and not promProg and not self.sim
+        self.useDcqcn = useDcqcn and not promProg and not self.sim
 
         # Resolve RoCEv2 defaults
         if self.useRoce:
@@ -128,6 +130,7 @@ class Root(pr.Root):
                     sim      = self.sim,
                     promProg = promProg,
                     rocev2   = self.useRoce,
+                    dcqcn    = self.useDcqcn,
                     expand   = True,
                 ))
                 self._coreAlreadyAdded = True
