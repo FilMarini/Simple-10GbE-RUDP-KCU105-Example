@@ -35,6 +35,7 @@ entity Core is
       TPD_G        : time    := 1 ns;
       BUILD_INFO_G : BuildInfoType;
       ROCEV2_EN_G  : boolean := false;
+      DCQCN_EN_G   : boolean := false;
       SIMULATION_G : boolean;
       ETH_BUILD_G  : BuildEthType;
       IP_ADDR_G    : slv(31 downto 0);
@@ -211,6 +212,7 @@ begin
             IP_ADDR_G        => IP_ADDR_G,
             DHCP_G           => DHCP_G,
             ROCEV2_EN_G      => ROCEV2_EN_G,
+            DCQCN_EN_G       => DCQCN_EN_G,
             AXIL_BASE_ADDR_G => XBAR_CONFIG_C(ETH_INDEX_C).baseAddr)
          port map (
             -- System Ports

@@ -36,6 +36,7 @@ entity Rudp is
       IP_ADDR_G        : slv(31 downto 0);
       DHCP_G           : boolean;
       ROCEV2_EN_G      : boolean := false;
+      DCQCN_EN_G       : boolean := false;
       AXIL_BASE_ADDR_G : slv(31 downto 0));
    port (
       -- System Ports
@@ -434,6 +435,8 @@ begin
          -- General IPv4/ARP/DHCP Generics
          DHCP_G              => DHCP_G,
          CLK_FREQ_G          => CLK_FREQUENCY_C,
+         DSCP_G              => 26,
+         ECN_G               => "10",
          COMM_TIMEOUT_G      => 10)           -- Timeout used for ARP and DHCP
       port map (
          -- Local Configurations
@@ -570,7 +573,7 @@ begin
          generic map (
             TPD_G             => TPD_G,
             EXT_ROCE_CONFIG_G => false,
-            DCQCN_EN_G        => true,
+            DCQCN_EN_G        => DCQCN_EN_G,
             AXIL_BASE_ADDR_G  => XBAR_CONFIG_C(ROCE_INDEX_C).baseAddr)
          port map (
             clk                 => ethClk,
